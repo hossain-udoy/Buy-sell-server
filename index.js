@@ -31,6 +31,9 @@ async function run() {
       .db("buy-sell")
       .collection("bookingCollection");
     const userCollection = client.db("buy-sell").collection("userCollection");
+    const reportingCollection = client
+      .db("buy-sell")
+      .collection("reportingCollection");
 
     app.get("/tvCollection", async (req, res) => {
       const query = {};
@@ -54,11 +57,19 @@ async function run() {
       const catCollection = await categoryCollection.find(query).toArray();
       res.send(catCollection);
     });
+    // booked products collection
     app.post("/bookingCollection", async (req, res) => {
       const booking = req.body;
       const booked = await bookingCollection.insertOne(booking);
       res.send(booked);
     });
+    // reported products collection
+    app.post("/reportCollection", async (req, res) => {
+      const reporting = req.body;
+      const reported = await reportingCollection.insertOne(reporting);
+      res.send(reported);
+    });
+
     app.post("/tvCollection", async (req, res) => {
       const products = req.body;
       const addProduct = await tvCollection.insertOne(products);

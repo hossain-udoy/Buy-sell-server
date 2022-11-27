@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-// const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 // const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -21,20 +21,83 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-async function run() {
-  try {
-    const tvCollection = client.db("buy-sell").collection("tvCollection");
-    const categoryCollection = client
-      .db("buy-sell")
-      .collection("categoryCollection");
-    const bookingCollection = client
-      .db("buy-sell")
-      .collection("bookingCollection");
-    const userCollection = client.db("buy-sell").collection("userCollection");
-    const reportingCollection = client
-      .db("buy-sell")
-      .collection("reportingCollection");
+// jwt
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send("unAuthorized");
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
 
+// collection
+const tvCollection = client.db("buy-sell").collection("tvCollection");
+const categoryCollection = client
+  .db("buy-sell")
+  .collection("categoryCollection");
+const bookingCollection = client.db("buy-sell").collection("bookingCollection");
+const userCollection = client.db("buy-sell").collection("userCollection");
+const reportingCollection = client
+  .db("buy-sell")
+  .collection("reportingCollection");
+
+async function run() {
+  // verify admin
+  const verifyAdmin = async (req, res, next) => {
+    const decodedEmail = req.decoded.email;
+    const query = { email: decodedEmail };
+    const user = await usersCollections.findOne(query);
+
+    if (user?.role !== "admin") {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    next();
+  };
+  // verify seller
+  const verifySeller = async (req, res, next) => {
+    const decodedEmail = req.decoded.email;
+    const query = { email: decodedEmail };
+    const user = await usersCollections.findOne(query);
+
+    if (user?.role !== "seller") {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    next();
+  };
+  // verify buyer
+  const verifyBuyer = async (req, res, next) => {
+    const decodedEmail = req.decoded.email;
+    const query = { email: decodedEmail };
+    const user = await usersCollections.findOne(query);
+
+    if (user?.role !== "buyer") {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    next();
+  };
+  try {
+    // jwt get function
+    app.get("/jwt", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const user = await usersCollections.findOne(query);
+      if (user) {
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, {
+          expiresIn: "5d",
+        });
+        return res.send({ accessToken: token });
+      }
+      res.status(403).send({ accessToken: "" });
+    });
+
+    // get tv collection
     app.get("/tvCollection", async (req, res) => {
       const query = {};
       const collection = await tvCollection.find(query).toArray();

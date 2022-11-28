@@ -3,7 +3,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -367,6 +367,55 @@ async function run() {
         const result = await reportingCollection.deleteOne(query);
         res.send(result);
       });
+
+      // payment option
+      app.post("/create-payment-intent", async (req, res) => {
+        const order = req.body;
+        // console.log(order);
+        const price = order.price;
+        const amount = price * 100;
+        // console.log(price);
+        const paymentIntent = await stripe.paymentIntents.create({
+          currency: "usd",
+          amount: amount,
+          payment_method_types: ["card"],
+        });
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      });
+
+      app.get(
+        "/tv/seller/:email",
+        verifyJWT,
+        verifySeller,
+        async (req, res) => {
+          const email = req.params.email;
+          const query = { sellerEmail: email };
+          const result = await tvCollection.find(query).toArray();
+          res.send(result);
+        }
+      );
+
+      app.post("/payments", async (req, res) => {
+        const payment = req.body;
+        const result = await paymentsCollection.insertOne(payment);
+        const id = payment.order;
+        const filter = { _id: ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            paid: true,
+            transactionId: payment.transactionId,
+          },
+        };
+        const updatedResult = await ordersCollections.updateOne(
+          filter,
+          updatedDoc
+        );
+        res.send(result);
+      });
+
+      // payment option
     });
   } finally {
   }

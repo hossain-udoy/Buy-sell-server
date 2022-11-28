@@ -281,7 +281,10 @@ async function run() {
           res.send(result);
         }
       });
-
+      app.get("/allBookings", async (req, res) => {
+        const result = await bookingCollection.find({}).toArray();
+        res.send(result);
+      });
       app.get("/users/buyer/:email", async (req, res) => {
         const email = req.params.email;
         const query = { email };
@@ -290,7 +293,7 @@ async function run() {
       });
       app.get("/booking/:email", verifyJWT, async (req, res) => {
         const email = req.params.email;
-        const query = { buyerEmail: email };
+        const query = { email: email };
         const result = await bookingCollection.find(query).toArray();
         res.send(result);
       });
